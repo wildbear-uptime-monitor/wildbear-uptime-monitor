@@ -194,10 +194,14 @@ export function startMonitor() {
     pingAllDomains().catch(console.error);
   });
 
-  // Screenshot to Telegram every 30 minutes
-  cron.schedule("*/30 * * * *", () => {
+  // Screenshot to Telegram 3x daily: 8am, 1pm, 7pm AEST (UTC: 10pm prev day, 3am, 9am)
+  // AEST = UTC+10, so:
+  // 8:00 AM AEST = 22:00 UTC (previous day)
+  // 1:00 PM AEST = 03:00 UTC
+  // 7:00 PM AEST = 09:00 UTC
+  cron.schedule("0 22,3,9 * * *", () => {
     sendStatusScreenshot().catch(console.error);
   });
 
-  console.log("[monitor] Scheduled — pings every 5min, screenshots every 30min");
+  console.log("[monitor] Scheduled — pings every 5min, screenshots at 8am/1pm/7pm AEST");
 }
