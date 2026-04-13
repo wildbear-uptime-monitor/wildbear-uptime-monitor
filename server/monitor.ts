@@ -125,6 +125,7 @@ async function pingDomain(domain: string): Promise<void> {
   // Telegram alert on status change
   if (prev !== undefined && prev !== status) {
     if (status === "down") {
+      // Send text alert first (fast), then screenshot
       await sendTelegram(
         `🔴 <b>OUTAGE DETECTED</b>\n\n` +
         `<b>Domain:</b> ${domain}\n` +
@@ -132,6 +133,8 @@ async function pingDomain(domain: string): Promise<void> {
         `<b>Error:</b> ${errorMessage ?? `HTTP ${statusCode}`}\n\n` +
         `⚠️ Site is <b>DOWN</b>. Monitoring every 5 minutes.`
       );
+      // Follow up with a dashboard screenshot showing current state
+      await sendStatusScreenshot();
     } else {
       await sendTelegram(
         `✅ <b>SITE RECOVERED</b>\n\n` +
@@ -148,6 +151,8 @@ async function pingDomain(domain: string): Promise<void> {
       `<b>Time:</b> ${ts} AEST\n` +
       `<b>Error:</b> ${errorMessage ?? `HTTP ${statusCode}`}`
     );
+    // Send screenshot on first detected outage too
+    await sendStatusScreenshot();
   }
 
   lastStatusMap.set(domain, status);
