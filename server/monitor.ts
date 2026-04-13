@@ -51,25 +51,35 @@ async function sendTelegramPhoto(photoPath: string, caption: string, chatId?: st
 
 async function captureDashboardScreenshot(): Promise<boolean> {
   try {
-    // Use Playwright if available (local), otherwise skip screenshot on Render free tier
-    const { chromium } = await import("playwright").catch(() => ({ chromium: null }));
+    const { chromium } = await import("playwright").catch(() => ({ chromium: null as any }));
     if (!chromium) {
       console.log("[monitor] Playwright not available — skipping screenshot");
       return false;
     }
-    const browser = await chromium.launch({ headless: true });
+
+    const port = process.env.PORT || "5000";
+    const url = `http://127.0.0.1:${port}`;
+
+    const browser = await chromium.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+    });
     const context = await browser.newContext({ viewport: { width: 1400, height: 900 } });
     const page = await context.newPage();
-    await page.goto("http://127.0.0.1:5000", { waitUntil: "networkidle", timeout: 20000 });
-    await page.waitForSelector('[data-testid="domain-grid"]', { timeout: 10000 });
-    await page.waitForTimeout(1500);
-    await page.screenshot({ path: SCREENSHOT_PATH, type: "png" });
+
+    // Navigate and wait for the page to load — don't rely on a specific selector
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+
+    // Give the React app time to render
+    await page.waitForTimeout(3000);
+
+    await page.screenshot({ path: SCREENSHOT_PATH, type: "png", fullPage: false });
     await context.close();
     await browser.close();
-    console.log("[monitor] Dashboard screenshot captured");
+    console.log("[monitor] Dashboard screenshot captured successfully");
     return true;
   } catch (err) {
-    console.error("[monitor] Screenshot error:", err);
+    console.error("[monitor] Screenshot capture failed:", err);
     return false;
   }
 }
@@ -163,8 +173,13 @@ export async function sendStatusScreenshot(chatId?: string | number): Promise<vo
     lines.join("\n");
 
   const screenshotOk = await captureDashboardScreenshot();
-  if (screenshotOk) {
+
+  if (screenshotOk && fs.existsSync(SCREENSHOT_PATH)) {
     await sendTelegramPhoto(SCREENSHOT_PATH, caption, chatId);
+  } else {
+    // Fallback: send as text message so Telegram always gets the report
+    console.log("[monitor] Screenshot unavailable — sending text report to Telegram");
+    await sendTelegram(caption, chatId);
   }
 }
 
