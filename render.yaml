@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: wildbear-uptime-monitor
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.cjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
