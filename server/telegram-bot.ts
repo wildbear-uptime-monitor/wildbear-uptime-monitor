@@ -3,8 +3,8 @@ import { storage } from "./storage";
 import type { UptimeStats } from "./storage";
 import { sendStatusScreenshot, pingAllDomains } from "./monitor";
 
-const TELEGRAM_BOT_TOKEN = "8773464472:AAFSMhGxe297dFxQJzWqgt8V8sXiUTjIGiE";
-const TELEGRAM_CHAT_ID = "7419898167";
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8773464472:AAFSMhGxe297dFxQJzWqgt8V8sXiUTjIGiE";
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "7419898167";
 const BASE_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
 const DOMAINS = [
@@ -30,7 +30,7 @@ async function handleCommand(text: string, chatId: number) {
 
   if (cmd === "/screenshot" || cmd === "/snap") {
     await sendMessage(chatId, "📸 Capturing dashboard screenshot, please wait…");
-    await sendStatusScreenshot();
+    await sendStatusScreenshot(chatId);
   } else if (cmd === "/status") {
     const lines = DOMAINS.map((d) => {
       const last = storage.getLastCheck(d);
@@ -84,8 +84,10 @@ async function pollUpdates() {
       const msg = update.message;
       if (!msg || !msg.text) continue;
 
-      // Only respond to the authorised chat
-      if (String(msg.chat.id) !== TELEGRAM_CHAT_ID) {
+      // Allow personal chat and any group chats where the bot is a member
+      const chatIdStr = String(msg.chat.id);
+      const isAuthorised = chatIdStr === TELEGRAM_CHAT_ID || msg.chat.type === "group" || msg.chat.type === "supergroup";
+      if (!isAuthorised) {
         await sendMessage(msg.chat.id, "⛔ Unauthorised.");
         continue;
       }

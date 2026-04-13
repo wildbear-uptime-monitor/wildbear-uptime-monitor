@@ -13,18 +13,18 @@ const DOMAINS = [
   "www.ua9o7uoa.com",
 ];
 
-const TELEGRAM_BOT_TOKEN = "8773464472:AAFSMhGxe297dFxQJzWqgt8V8sXiUTjIGiE";
-const TELEGRAM_CHAT_ID = "7419898167";
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8773464472:AAFSMhGxe297dFxQJzWqgt8V8sXiUTjIGiE";
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "7419898167";
 const TIMEOUT_MS = 15000;
 const SCREENSHOT_PATH = path.resolve("dashboard-screenshot.png");
 
 const lastStatusMap = new Map<string, "up" | "down">();
 
-async function sendTelegram(message: string) {
+async function sendTelegram(message: string, chatId?: string | number) {
   try {
     await axios.post(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
-      { chat_id: TELEGRAM_CHAT_ID, text: message, parse_mode: "HTML" },
+      { chat_id: chatId ?? TELEGRAM_CHAT_ID, text: message, parse_mode: "HTML" },
       { timeout: 10000 }
     );
   } catch (err) {
@@ -32,10 +32,10 @@ async function sendTelegram(message: string) {
   }
 }
 
-async function sendTelegramPhoto(photoPath: string, caption: string) {
+async function sendTelegramPhoto(photoPath: string, caption: string, chatId?: string | number) {
   try {
     const form = new FormData();
-    form.append("chat_id", TELEGRAM_CHAT_ID);
+    form.append("chat_id", String(chatId ?? TELEGRAM_CHAT_ID));
     form.append("photo", fs.createReadStream(photoPath));
     form.append("caption", caption);
     await axios.post(
@@ -147,7 +147,7 @@ export async function pingAllDomains(): Promise<void> {
   await Promise.all(DOMAINS.map((d) => pingDomain(d)));
 }
 
-export async function sendStatusScreenshot(): Promise<void> {
+export async function sendStatusScreenshot(chatId?: string | number): Promise<void> {
   const ts = new Date().toLocaleString("en-AU", { timeZone: "Australia/Sydney" });
   const lines = DOMAINS.map((d) => {
     const last = storage.getLastCheck(d);
@@ -164,7 +164,7 @@ export async function sendStatusScreenshot(): Promise<void> {
 
   const screenshotOk = await captureDashboardScreenshot();
   if (screenshotOk) {
-    await sendTelegramPhoto(SCREENSHOT_PATH, caption);
+    await sendTelegramPhoto(SCREENSHOT_PATH, caption, chatId);
   }
 }
 
